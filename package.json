@@ -1,16 +1,26 @@
 {
-  "name": "@tsoft/app-gate",
+  "name": "@tekrom/tsoft-app-gate",
   "version": "0.1.0",
   "description": "T-Soft app gate core SDK",
   "type": "module",
-  "main": "dist/index.js",
-  "module": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "tsc"
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tekrom/tsoft-app-gate"
   },
   "keywords": [
     "tsoft",
@@ -18,5 +28,8 @@
     "embedded-app"
   ],
   "author": "T-Soft",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
 }
