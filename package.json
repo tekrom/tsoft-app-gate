@@ -1,10 +1,14 @@
 {
   "name": "@tsoft/app-gate",
-  "version": "0.1.1",
+  "version": "0.1.0",
   "description": "T-Soft app gate core SDK",
-  "main": "dist/index.cjs",
+  "type": "module",
+  "main": "dist/index.js",
   "module": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc"
   },
