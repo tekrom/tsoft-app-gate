@@ -1,6 +1,6 @@
 {
   "name": "@tekrom/tsoft-app-gate",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "T-Soft paneli içinde açılan uygulamalar için App Bridge istemcisi",
   "type": "module",
   "main": "./dist/index.js",
