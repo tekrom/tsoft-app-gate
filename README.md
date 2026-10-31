@@ -6,12 +6,29 @@ T-Soft paneli içinde (iframe) açılan uygulamalar için **App Bridge** istemci
 npm install @tekrom/tsoft-app-gate
 ```
 
+Paketleyici kullanmıyorsanız tarayıcı derlemesini `<script>` ile yükleyin; aynı API `TSoftAppGate` global'i altında gelir:
+
+```html
+<script src="https://cdn.jsdelivr.net/npm/@tekrom/tsoft-app-gate@0.3/dist/tsoft-app-gate.min.js"></script>
+<script>
+  const app = TSoftAppGate.createApp();
+</script>
+```
+
+Sürümü sabitleyin (`@0.3` ya da tam sürüm); üretimde dosyayı kendi sunucunuzdan sunmak da mümkündür.
+
 ## Hızlı başlangıç
 
 ```ts
-import { createApp, AppBridgeError } from '@tekrom/tsoft-app-gate';
+import { createApp, isEmbedded, AppBridgeError } from '@tekrom/tsoft-app-gate';
+
+if (!isEmbedded()) {
+  // Panel dışında açıldı: kendi giriş akışınızı gösterin.
+}
 
 const app = createApp();
+
+app.claims?.store_id; // hangi mağaza (doğrulamayı sunucuda yapın)
 
 // Arka uca giden her istekte taze token kullanın.
 const token = await app.getSessionToken();
@@ -42,27 +59,32 @@ const stop = app.autoResize();
 
 | Seçenek | Varsayılan | Açıklama |
 |---|---|---|
-| `panelOrigin` | otomatik | Panelin origin'i. Verilmezse `location.ancestorOrigins`, yoksa `document.referrer` kullanılır (panel iframe'i `referrerpolicy="strict-origin"` ile açar). |
+| `panelOrigin` | otomatik | Panelin origin'i. Verilmezse `location.ancestorOrigins`, yoksa `document.referrer` kullanılır (panel iframe'i `referrerpolicy="strict-origin"` ile açar) ve T-Soft panel alan adlarından biri olmalıdır. Elle verilen değer denetlenmez; yalnız yerel geliştirmede kullanın. |
 | `timeout` | `10000` | Kullanıcı etkileşimi beklemeyen isteklerin zaman aşımı (ms). |
 
-Uygulama bir iframe içinde değilse ya da panel origin'i bulunamazsa `AppBridgeError('not_embedded')` fırlatır. Bu durumda uygulamanızı panel dışında (ör. doğrudan URL ile) açılmış sayıp ona göre davranın.
+Panel alan adları `PANEL_ORIGIN_PATTERN` ile denetlenir: `tsoftpanel.com`, `tsoftpanel.net`, `paneltsoft.com` ve bunların alt alan adları, yalnız `https`. Böylece uygulamanızı başka bir siteye gömen biri panel gibi yanıt veremez.
+
+Uygulama bir iframe içinde değilse ya da üst pencere bir T-Soft paneli değilse `AppBridgeError('not_embedded')` fırlatır. Önceden bakmak için `isEmbedded()` kullanın.
 
 Dönen nesnede ayrıca şunlar vardır:
 
 - `panelOrigin`: Mesajların gönderildiği ve yanıtların kabul edildiği origin.
+- `claims`: Elimizdeki son oturum token'ının içeriği (`store_id`, `dest`, `sub`, `aud`, `exp`…); token yoksa `null`. Token yenilendikçe güncellenir.
 - `installCode`: Panelin kurulumdan hemen sonra eklediği `?code=` değeri; yoksa `null`.
 
 ### Oturum token'ı
 
 ```ts
 app.getSessionToken(options?): Promise<string>
-app.getSession(options?): Promise<{ token, expiresAt, scopes }>
+app.getSession(options?): Promise<{ token, claims, expiresAt, scopes }>
+decodeSessionToken(token): SessionClaims | null
 ```
 
 - Panel uygulamayı `?session=<jwt>` ile açar. Bu token süresi dolmamışsa ilk çağrıda panele gidilmeden kullanılır; bu durumda `scopes` `null` olur.
-- Token'ın bitmesine 30 saniyeden az kaldıysa panelden yenisi istenir. Aynı anda gelen yenileme çağrıları tek isteğe bağlanır.
+- Token 60 saniye yaşar. Bitmesine 15 saniyeden az kaldıysa panelden yenisi istenir; aynı anda gelen yenileme çağrıları tek isteğe bağlanır. Her sunucu isteğinden önce `getSessionToken()` çağırmanız yeterlidir.
 - `forceRefresh: true` önbelleği atlar; `scopes` her zaman panelden gelen güncel listeyi içerir.
-- Token ES256 imzalı bir JWT'dir (`aud` = uygulama prefix'i, `store_id`, `dest` = mağaza alan adı, `sub` = panel kullanıcısı). İstemci yalnız `exp` alanını önbellek süresi için okur; **imzayı arka ucunuzda JWKS ile doğrulayın.**
+- Token ES256 imzalı bir JWT'dir (`iss`, `aud` = uygulama prefix'i, `sub` = panel kullanıcısı, `store_id`, `dest` = mağaza alan adı, `iat`, `nbf`, `exp`, `jti`). İstemci içeriği imza doğrulamadan okur; **imzayı sunucunuzda JWKS ile doğrulayın** (`https://api.tsoftapps.com/api/integration/v3/apps/jwks.json`, ayrıntı: [Panele Gömülü Uygulamalar](https://developer.tsoft.com.tr/uygulama-gelistirme/embedded-uygulamalar)).
+- Oturum token'ı Admin API için değildir; uygulamanın kendi sunucusuyla konuşması içindir.
 
 ### `toast(message, { variant? })`
 
@@ -134,7 +156,7 @@ Tüm reddedilen promise'ler `AppBridgeError` taşır; `code` alanı aşağıdaki
 | `unsupported_type` | panel | Panel bu mesaj tipini tanımıyor (eski panel sürümü). |
 | `internal_error` | panel | Panel isteği işlerken hata aldı (ör. token alınamadı). |
 | `timeout` | istemci | Süre içinde yanıt gelmedi. |
-| `not_embedded` | istemci | Uygulama panel iframe'i içinde değil. |
+| `not_embedded` | istemci | Uygulama panel iframe'i içinde değil ya da üst pencere bir T-Soft paneli değil. |
 | `destroyed` | istemci | `destroy()` çağrıldıktan sonra istek yapıldı. |
 
 ## Protokol
@@ -171,7 +193,7 @@ Kurallar:
 - Panel yalnız `event.origin` uygulama origin'ine eşit ve `event.source` kendi iframe'i olan mesajları işler.
 - `source`, `version` (1), `type` (string) ve `id` (string) zorunludur; uymayan mesaj sessizce yok sayılır, yanıt dönmez.
 - `id` panel tarafında 64 karaktere kesilir; yanıt bu kesilmiş kimlikle döner. 64 karakteri aşmayın.
-- Uygulama da yanıtları yalnız `event.source === window.parent` ve `event.origin === panelOrigin` ise kabul etmelidir.
+- Uygulama da mesajı `targetOrigin` olarak panel origin'iyle göndermeli, yanıtları yalnız `event.source === window.parent` ve `event.origin` panel alan adlarından biriyse kabul etmelidir.
 
 ### Mesaj tipleri
 
@@ -198,15 +220,28 @@ window.parent.postMessage({ type: 'tsoft:session-token:request' }, panelOrigin);
 // hata:   { type: 'tsoft:session-token:error' }
 ```
 
-## 0.1.x'ten geçiş
+## Geçiş
 
-0.1.x'teki `createApp({ apiKey, shopId, host })`, `setNavigationMenu` ve `showToast` panelin hiç tanımadığı bir mesaj biçimi (`T_SOFT_APP_BRIDGE`) gönderiyordu; bu yüzden kaldırıldı. Karşılıkları:
+### `developer.tsoft.com.tr/app-bridge/v1` script'inden
 
-| 0.1.x | 0.2 |
+| `TSoftBridge` | `TSoftAppGate` / npm |
 |---|---|
-| `createApp({ apiKey, shopId, host })` | `createApp()` |
-| `showToast(app, { message, variant })` | `app.toast(message, { variant })` |
-| `setNavigationMenu(app, items)` | Karşılığı yok; panel uygulama menüsünü desteklemiyor. |
+| `TSoftBridge.create()` | `createApp()` |
+| `bridge.claims` | `app.claims` |
+| `bridge.sessionToken()` | `app.getSessionToken()` |
+| `bridge.toast(message, 'error')` | `app.toast(message, { variant: 'error' })` |
+| `bridge.confirm(opts)` | `app.confirm(opts)` |
+| `bridge.pickProducts({ multiple })` | `app.pickResource({ type: 'product', multiple })` |
+| `bridge.navigate(path)` | `app.navigate.app(path)` |
+| `bridge.openPanel(resource, id)` | `app.navigate.panel(resource, id)` |
+| `bridge.setHeight(h)` / `bridge.autoResize()` | `app.setHeight(h)` / `app.autoResize()` |
+| `Error.message` | `AppBridgeError.code` |
+
+Script panel dışında açılınca ilk istekte hata veriyordu; `createApp()` ise hemen `not_embedded` fırlatır.
+
+### 0.1.x'ten
+
+0.1.x'teki `createApp({ apiKey, shopId, host })`, `setNavigationMenu` ve `showToast` panelin tanımadığı bir mesaj biçimi (`T_SOFT_APP_BRIDGE`) gönderiyordu; kaldırıldı. `showToast(app, opts)` yerine `app.toast(message, opts)` kullanın; uygulama menüsünün karşılığı yok.
 
 ## Geliştirme
 
@@ -216,4 +251,4 @@ npm test      # derler ve node --test ile testleri koşar (Node 23.6+)
 npm run build
 ```
 
-`dist/` yalnız npm paketine girer, repoya eklenmez. `prepublishOnly` yayın öncesi derlemeyi çalıştırır.
+Derleme iki çıktı üretir: `tsc` ile ESM + tipler (`dist/index.js`) ve `esbuild` ile tarayıcı derlemesi (`dist/tsoft-app-gate.min.js`). `dist/` yalnız npm paketine girer, repoya eklenmez. `prepublishOnly` yayın öncesi derlemeyi çalıştırır.
