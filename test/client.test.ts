@@ -1,12 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
 import { createApp, AppBridgeError } from '../dist/index.js';
 
-const PANEL = 'https://panel.example.com';
+const PANEL = 'https://magaza.tsoftpanel.com';
 
 type Handler = (message: any) => { ok: boolean; payload?: unknown; error?: string } | undefined;
 
-function setup({ search = '', handler = (() => ({ ok: true, payload: {} })) as Handler } = {}) {
+function setup({ search = '', origin = PANEL, handler = (() => ({ ok: true, payload: {} })) as Handler } = {}) {
   const sent: any[] = [];
   const win = new EventTarget() as any;
   const parent = {
@@ -19,13 +21,13 @@ function setup({ search = '', handler = (() => ({ ok: true, payload: {} })) as H
   const reply = (data: unknown, origin = PANEL, source: unknown = parent) =>
     win.dispatchEvent(Object.assign(new Event('message'), { data, origin, source }));
   win.parent = parent;
-  win.location = { search, ancestorOrigins: [PANEL] };
+  win.location = { search, ancestorOrigins: [origin] };
   (globalThis as any).window = win;
   (globalThis as any).document = { referrer: '' };
   return { sent, reply };
 }
 
-const jwt = (exp: number) => `x.${Buffer.from(JSON.stringify({ exp })).toString('base64url')}.y`;
+const jwt = (exp: number, extra: object = {}) => `x.${Buffer.from(JSON.stringify({ exp, ...extra })).toString('base64url')}.y`;
 
 test('panel dışında açılınca not_embedded fırlatır', () => {
   const win = new EventTarget() as any;
@@ -115,4 +117,40 @@ test('destroy bekleyen istekleri reddeder', async () => {
   app.destroy();
   await assert.rejects(pending, (e: any) => e.code === 'destroyed');
   await assert.rejects(app.toast('x'), (e: any) => e.code === 'destroyed');
+});
+
+test('üst pencere T-Soft paneli değilse not_embedded; panelOrigin elle verilirse denetlenmez', () => {
+  setup({ origin: 'https://evil.example.com' });
+  assert.throws(() => createApp(), (e: any) => e.code === 'not_embedded');
+  setup({ origin: 'https://tsoftpanel.com.evil.com' });
+  assert.throws(() => createApp(), (e: any) => e.code === 'not_embedded');
+  for (const origin of ['https://tsoftpanel.com', 'https://v5--13150.paneltsoft.com', 'https://a.tsoftpanel.net']) {
+    setup({ origin });
+    createApp().destroy();
+  }
+  setup({ origin: 'http://localhost:3000' });
+  assert.equal(createApp({ panelOrigin: 'http://localhost:3000' }).panelOrigin, 'http://localhost:3000');
+});
+
+test('claims URL token\'ından okunur, yenilemede güncellenir', async () => {
+  const exp = Math.floor(Date.now() / 1000) + 600;
+  setup({
+    search: `?session=${jwt(exp, { store_id: 's1', dest: 'magaza.com', aud: 'app.ornek' })}`,
+    handler: () => ({ ok: true, payload: { token: jwt(exp, { store_id: 's1', dest: 'çiçek.com' }), expires_in: 60, scopes: [] } }),
+  });
+  const app = createApp();
+  assert.equal(app.claims?.dest, 'magaza.com');
+  assert.equal(app.claims?.aud, 'app.ornek');
+  await app.getSession({ forceRefresh: true });
+  assert.equal(app.claims?.dest, 'çiçek.com', 'UTF-8 çözülür');
+  app.destroy();
+});
+
+test('tarayıcı derlemesi TSoftAppGate global\'ini tanımlar', () => {
+  const source = readFileSync(new URL('../dist/tsoft-app-gate.min.js', import.meta.url), 'utf8');
+  const context: any = { window: {}, TextDecoder, atob, URLSearchParams };
+  vm.runInNewContext(source + ';window.TSoftAppGate = TSoftAppGate;', context);
+  assert.equal(typeof context.window.TSoftAppGate.createApp, 'function');
+  assert.equal(typeof context.window.TSoftAppGate.isEmbedded, 'function');
+  assert.equal(context.window.TSoftAppGate.BRIDGE_VERSION, 1);
 });

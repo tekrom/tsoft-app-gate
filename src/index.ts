@@ -1,4 +1,4 @@
-export { createApp, AppBridgeError } from './client.js';
+export { createApp, isEmbedded, decodeSessionToken, AppBridgeError, PANEL_ORIGIN_PATTERN } from './client.js';
 export type {
   App,
   AppOptions,
@@ -7,6 +7,7 @@ export type {
   PickOptions,
   PickResult,
   RequestOptions,
+  SessionClaims,
   SessionToken,
   ToastOptions,
 } from './client.js';

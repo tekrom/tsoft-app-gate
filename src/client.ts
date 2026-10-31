@@ -24,8 +24,9 @@ export class AppBridgeError extends Error {
 
 export interface AppOptions {
   /**
-   * Panelin origin'i (ör. `https://magaza.tsoft360.com`). Verilmezse
-   * `location.ancestorOrigins` ya da `document.referrer` üzerinden bulunur.
+   * Panelin origin'i. Verilmezse `location.ancestorOrigins` ya da `document.referrer`
+   * üzerinden bulunur ve T-Soft panel alan adlarından biri olmalıdır. Elle verilen
+   * değer bu listeyle denetlenmez; yerel geliştirme içindir.
    */
   panelOrigin?: string;
   /** Kullanıcı etkileşimi beklemeyen isteklerin zaman aşımı (ms). Varsayılan 10000. */
@@ -37,8 +38,26 @@ export interface RequestOptions {
   timeout?: number;
 }
 
+/** Oturum token'ının içeriği. İmza doğrulanmadan okunur; güvenmeden önce sunucuda doğrulayın. */
+export interface SessionClaims {
+  iss: string;
+  /** Uygulamanın prefix'i. */
+  aud: string;
+  /** Uygulamayı açan panel kullanıcısı. */
+  sub: string;
+  store_id: string;
+  /** Mağaza alan adı. */
+  dest: string;
+  iat: number;
+  nbf: number;
+  exp: number;
+  jti: string;
+  [claim: string]: unknown;
+}
+
 export interface SessionToken {
   token: string;
+  claims: SessionClaims | null;
   /** Token'ın geçerliliğini yitirdiği an (epoch ms). */
   expiresAt: number;
   /** Panelden alınmışsa uygulamanın kapsamları; URL'deki token için `null`. */
@@ -72,6 +91,8 @@ export interface AutoResizeOptions {
 
 export interface App {
   readonly panelOrigin: string;
+  /** Elimizdeki son oturum token'ının içeriği; token yoksa `null`. */
+  readonly claims: SessionClaims | null;
   /** Panelin kurulumdan hemen sonra URL'e eklediği `?code=` değeri. */
   readonly installCode: string | null;
 
@@ -99,7 +120,16 @@ export interface App {
 }
 
 const DEFAULT_TIMEOUT = 10_000;
-const REFRESH_MARGIN = 30_000;
+// Token 60 sn yaşar; sunucuya giderken süresi dolmasın diye 15 sn kala yenilenir.
+const REFRESH_MARGIN = 15_000;
+
+/** Panelin yayınlandığı alan adları (t-panel `PANEL_DOMAINS`). */
+export const PANEL_ORIGIN_PATTERN = /^https:\/\/([a-z0-9-]+\.)*(tsoftpanel\.com|tsoftpanel\.net|paneltsoft\.com)$/;
+
+/** Sayfa bir iframe içinde mi açılmış. */
+export function isEmbedded(): boolean {
+  return typeof window !== 'undefined' && window.parent !== window;
+}
 
 interface Pending {
   resolve: (payload: any) => void;
@@ -119,13 +149,12 @@ function detectPanelOrigin(): string | null {
   }
 }
 
-/** JWT `exp` alanını imza doğrulamadan okur; yalnız önbellek süresi için. */
-function tokenExpiry(token: string): number | null {
+/** JWT gövdesini imza doğrulamadan okur. */
+export function decodeSessionToken(token: string): SessionClaims | null {
   try {
-    const part = token.split('.')[1];
-    const json = atob(part.replace(/-/g, '+').replace(/_/g, '/'));
-    const exp = JSON.parse(json).exp;
-    return typeof exp === 'number' ? exp * 1000 : null;
+    const binary = atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'));
+    const claims = JSON.parse(new TextDecoder().decode(Uint8Array.from(binary, (c) => c.charCodeAt(0))));
+    return claims && typeof claims.exp === 'number' ? claims : null;
   } catch {
     return null;
   }
@@ -136,14 +165,15 @@ function isFresh(session: SessionToken | null): session is SessionToken {
 }
 
 export function createApp(options: AppOptions = {}): App {
-  if (typeof window === 'undefined' || window.parent === window) {
+  if (!isEmbedded()) {
     throw new AppBridgeError('not_embedded', 'T-Soft App Bridge: uygulama panel iframe\'i içinde açılmamış');
   }
 
-  const panelOrigin = options.panelOrigin ?? detectPanelOrigin();
-  if (!panelOrigin) {
-    throw new AppBridgeError('not_embedded', 'T-Soft App Bridge: panel origin\'i bulunamadı; panelOrigin seçeneğini verin');
+  const detected = options.panelOrigin ? null : detectPanelOrigin();
+  if (!options.panelOrigin && !(detected && PANEL_ORIGIN_PATTERN.test(detected))) {
+    throw new AppBridgeError('not_embedded', `T-Soft App Bridge: üst pencere bir T-Soft paneli değil (${detected ?? 'bilinmiyor'})`);
   }
+  const panelOrigin = (options.panelOrigin ?? detected) as string;
 
   const defaultTimeout = options.timeout ?? DEFAULT_TIMEOUT;
   const pending = new Map<string, Pending>();
@@ -155,9 +185,9 @@ export function createApp(options: AppOptions = {}): App {
   let refreshing: Promise<SessionToken> | null = null;
 
   if (urlToken) {
-    const expiresAt = tokenExpiry(urlToken);
-    if (expiresAt !== null) {
-      session = { token: urlToken, expiresAt, scopes: null };
+    const claims = decodeSessionToken(urlToken);
+    if (claims) {
+      session = { token: urlToken, claims, expiresAt: claims.exp * 1000, scopes: null };
     }
   }
 
@@ -210,8 +240,10 @@ export function createApp(options: AppOptions = {}): App {
     }
     refreshing ??= request('session-token.get', {}, sessionOptions)
       .then((response): SessionToken => {
+        // expires_in görece olduğu için istemci saatindeki kaymadan etkilenmez.
         session = {
           token: response.token,
+          claims: decodeSessionToken(response.token),
           expiresAt: Date.now() + response.expires_in * 1000,
           scopes: Array.isArray(response.scopes) ? response.scopes : [],
         };
@@ -229,6 +261,9 @@ export function createApp(options: AppOptions = {}): App {
 
   return {
     panelOrigin,
+    get claims() {
+      return session?.claims ?? null;
+    },
     installCode: params.get('code'),
 
     getSession,

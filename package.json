@@ -9,14 +9,17 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    }
+    },
+    "./browser": "./dist/tsoft-app-gate.min.js"
   },
+  "unpkg": "./dist/tsoft-app-gate.min.js",
+  "jsdelivr": "./dist/tsoft-app-gate.min.js",
   "files": [
     "dist"
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && esbuild src/index.ts --bundle --format=iife --global-name=TSoftAppGate --target=es2018 --minify --outfile=dist/tsoft-app-gate.min.js",
     "test": "npm run build && node --test test/",
     "prepublishOnly": "npm run build"
   },
@@ -33,6 +36,7 @@
   "author": "T-Soft",
   "license": "MIT",
   "devDependencies": {
+    "esbuild": "^0.25.10",
     "typescript": "^5.9.3"
   }
 }
