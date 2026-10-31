@@ -1,7 +1,7 @@
 {
   "name": "@tekrom/tsoft-app-gate",
   "version": "0.1.1",
-  "description": "T-Soft app gate core SDK",
+  "description": "T-Soft paneli içinde açılan uygulamalar için App Bridge istemcisi",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -14,8 +14,10 @@
   "files": [
     "dist"
   ],
+  "sideEffects": false,
   "scripts": {
     "build": "tsc",
+    "test": "npm run build && node --test test/",
     "prepublishOnly": "npm run build"
   },
   "repository": {
@@ -25,6 +27,7 @@
   "keywords": [
     "tsoft",
     "app-gate",
+    "app-bridge",
     "embedded-app"
   ],
   "author": "T-Soft",

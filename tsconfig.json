@@ -1,7 +1,7 @@
 // tsconfig.json
 {
   "compilerOptions": {
-    "target": "ES2017",
+    "target": "ES2018",
     "module": "ESNext",
     "moduleResolution": "Node",
     "declaration": true,
