@@ -31,6 +31,16 @@ export type PanelResource = PanelListResource | PanelDetailResource;
 /** Seçici türü ve istediği kapsam: `product` → `read_products`. */
 export type PickableResource = 'product';
 
+/**
+ * Panelin sol menüsünde uygulamanın adı altında görünen bağlantı. `path` uygulamanın
+ * kendi adresi altında `/` ile başlayan yol olmalı (`/orders?status=1` gibi); etiket
+ * en fazla 40 karakter. Liste en fazla 8 öğe; boş liste menüyü kaldırır.
+ */
+export interface NavItem {
+  label: string;
+  path: string;
+}
+
 export interface RequestPayloads {
   'session-token.get': Record<string, never>;
   'toast.show': { message: string; variant?: ToastVariant };
@@ -39,6 +49,7 @@ export interface RequestPayloads {
   'navigate.panel': { resource: PanelResource; id?: string };
   'resource.pick': { type: PickableResource; multiple?: boolean };
   'size.set': { height: number };
+  'nav.set': { items: NavItem[] };
 }
 
 export interface ResponsePayloads {
@@ -49,6 +60,7 @@ export interface ResponsePayloads {
   'navigate.panel': Record<string, never>;
   'resource.pick': { ids: Array<string | number>; cancelled?: boolean };
   'size.set': Record<string, never>;
+  'nav.set': Record<string, never>;
 }
 
 export type RequestType = keyof RequestPayloads;

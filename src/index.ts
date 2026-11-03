@@ -16,6 +16,7 @@ export type {
   BridgeErrorCode,
   BridgeRequest,
   BridgeResponse,
+  NavItem,
   PanelDetailResource,
   PanelListResource,
   PanelResource,

@@ -110,6 +110,18 @@ test('confirm, navigate ve pickResource yükleri', async () => {
   app.destroy();
 });
 
+test('nav.set yalnız label ve path gönderir', async () => {
+  const { sent } = setup();
+  const app = createApp();
+  await app.nav.set([{ label: 'Gönderiler', path: '/shipments', extra: 1 } as any, { label: 'Ayarlar', path: '/settings' }]);
+  await app.nav.set([]);
+  assert.deepEqual(sent.map((s) => [s.message.type, s.message.payload]), [
+    ['nav.set', { items: [{ label: 'Gönderiler', path: '/shipments' }, { label: 'Ayarlar', path: '/settings' }] }],
+    ['nav.set', { items: [] }],
+  ]);
+  app.destroy();
+});
+
 test('destroy bekleyen istekleri reddeder', async () => {
   setup({ handler: () => undefined });
   const app = createApp();
