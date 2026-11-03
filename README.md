@@ -9,13 +9,13 @@ npm install @tekrom/tsoft-app-gate
 Paketleyici kullanmıyorsanız tarayıcı derlemesini `<script>` ile yükleyin; aynı API `TSoftAppGate` global'i altında gelir:
 
 ```html
-<script src="https://cdn.jsdelivr.net/npm/@tekrom/tsoft-app-gate@0.3/dist/tsoft-app-gate.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tekrom/tsoft-app-gate@0.4/dist/tsoft-app-gate.min.js"></script>
 <script>
   const app = TSoftAppGate.createApp();
 </script>
 ```
 
-Sürümü sabitleyin (`@0.3` ya da tam sürüm); üretimde dosyayı kendi sunucunuzdan sunmak da mümkündür.
+Sürümü sabitleyin (`@0.4` ya da tam sürüm); üretimde dosyayı kendi sunucunuzdan sunmak da mümkündür.
 
 ## Hızlı başlangıç
 
@@ -49,6 +49,11 @@ try {
 }
 
 await app.navigate.panel('order', 1042);
+
+await app.nav.set([
+  { label: 'Gönderiler', path: '/shipments' },
+  { label: 'Ayarlar', path: '/settings' },
+]);
 
 const stop = app.autoResize();
 ```
@@ -118,6 +123,23 @@ Panelde başka bir sayfaya geçer (uygulama kapanır).
 
 Kimlik `^[A-Za-z0-9_-]{1,64}$` kalıbına uymalı; bilinmeyen kaynak ya da geçersiz kimlik `invalid_route` döner.
 
+### `nav.set(items)`
+
+Panelin sol menüsünde (ve mobil menüde) uygulamanın adının altında alt menü gösterir; Shopify App Bridge'deki `ui-nav-menu` karşılığıdır. `items`: `{ label, path }` listesi.
+
+- En fazla 8 öğe; `label` boş olamaz, en fazla 40 karakter.
+- `path` uygulamanın kendi adresi altında, `/` ile başlayan yol olmalı (`/orders?status=1` gibi). Mutlak ya da başka origin'e giden adres, `//` ile başlayan yol ve `javascript:` reddedilir. `app_url` bir alt dizindeyse (`https://x.com/app/`) yol o dizinin altında kalmalı.
+- Tek bir geçersiz öğe bütün listeyi `invalid_payload` ile reddeder; menü değişmez.
+- Boş liste (`[]`) menüyü kaldırır.
+
+Bağlantıya tıklanınca panel `?path=` değerini değiştirir ve iframe'i o yolla, yeni oturum token'ıyla yeniden yükler. Etkin bağlantı iframe'in o anki yoluna göre işaretlenir: önce bire bir eşleşme, sonra en uzun yol öneki (`/orders` bağlantısı `/orders/42` yolunda da etkin; `/` yalnız kendisiyle eşleşir). Uygulama kendi içinde gezindikçe `navigate.app` çağırırsa vurgu da güncel kalır.
+
+Panel son gönderilen listeyi uygulama başına tarayıcıda saklar; menü bir sonraki açılışta uygulama yüklenmeden görünür. Alt menü uygulama panelde açıkken ya da menüye sabitlenmişken görünür. Listeyi her açılışta göndermeniz yeterlidir:
+
+```ts
+await app.nav.set([{ label: 'Gönderiler', path: '/shipments' }, { label: 'Ayarlar', path: '/settings' }]);
+```
+
 ### `pickResource({ type, multiple? })`
 
 Panelin seçicisini açar, seçilen kayıtların kimliklerini döner: `{ ids, cancelled }`. Kullanıcı pencereyi kapatırsa `{ ids: [], cancelled: true }`. Varsayılan olarak zaman aşımı yoktur.
@@ -148,7 +170,7 @@ Tüm reddedilen promise'ler `AppBridgeError` taşır; `code` alanı aşağıdaki
 
 | Kod | Kaynak | Anlamı |
 |---|---|---|
-| `invalid_payload` | panel | Zorunlu alan boş ya da tipi yanlış. |
+| `invalid_payload` | panel | Zorunlu alan boş ya da tipi yanlış; `nav.set` listesinde geçersiz öğe. |
 | `invalid_path` | panel | `navigate.app` yolu geçersiz ya da uygulama origin'i dışında. |
 | `invalid_route` | panel | `navigate.panel` kaynağı bilinmiyor ya da kimlik geçersiz. |
 | `missing_scope` | panel | Uygulamanın bu iş için gereken kapsamı yok. |
@@ -169,7 +191,7 @@ Panel uygulamanın `app_url` adresini (yalnız `https`, panel origin'inden farkl
 
 - `session`: Oturum JWT'si.
 - `code`: Yalnız kurulumdan hemen sonraki ilk açılışta, kurulum kodu.
-- Panel URL'inde `?path=/x` varsa uygulama `app_url` origin'i altındaki `/x` yolundan açılır.
+- Panel URL'inde `?path=/x` varsa uygulama `app_url` origin'i altındaki `/x` yolundan açılır. `?path=` panel tarafında değişirse (alt menü bağlantısı) iframe o yolla yeniden yüklenir; `navigate.app`'in yazdığı yol yeniden yükleme yapmaz.
 
 iframe `sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads"`, `allow="clipboard-write"` ve `referrerpolicy="strict-origin"` ile açılır. Üst pencereye yönlendirme (`allow-top-navigation`) yoktur; panelde gezinmek için `navigate.panel` kullanılır.
 
@@ -206,6 +228,7 @@ Kurallar:
 | `navigate.panel` | `{ resource, id? }` | `{}` | `invalid_route` |
 | `resource.pick` | `{ type, multiple? }` | `{ ids, cancelled? }` | `unsupported_resource`, `missing_scope` |
 | `size.set` | `{ height }` | `{}` | `invalid_payload` |
+| `nav.set` | `{ items: [{ label, path }] }` | `{}` | `invalid_payload` |
 | diğer | — | — | `unsupported_type` |
 
 `confirm.open` ve `resource.pick` yanıtı kullanıcı işlem yapınca gelir.
@@ -241,7 +264,7 @@ Script panel dışında açılınca ilk istekte hata veriyordu; `createApp()` is
 
 ### 0.1.x'ten
 
-0.1.x'teki `createApp({ apiKey, shopId, host })`, `setNavigationMenu` ve `showToast` panelin tanımadığı bir mesaj biçimi (`T_SOFT_APP_BRIDGE`) gönderiyordu; kaldırıldı. `showToast(app, opts)` yerine `app.toast(message, opts)` kullanın; uygulama menüsünün karşılığı yok.
+0.1.x'teki `createApp({ apiKey, shopId, host })`, `setNavigationMenu` ve `showToast` panelin tanımadığı bir mesaj biçimi (`T_SOFT_APP_BRIDGE`) gönderiyordu; kaldırıldı. `showToast(app, opts)` yerine `app.toast(message, opts)` kullanın; `setNavigationMenu` yerine 0.4.0'dan beri `app.nav.set(items)` var.
 
 ## Geliştirme
 

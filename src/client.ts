@@ -3,6 +3,7 @@ import {
   BRIDGE_VERSION,
   PANEL_SOURCE,
   type BridgeErrorCode,
+  type NavItem,
   type PanelDetailResource,
   type PanelListResource,
   type PickableResource,
@@ -106,6 +107,13 @@ export interface App {
     app(path: string, options?: RequestOptions): Promise<void>;
     panel(resource: PanelListResource, options?: RequestOptions): Promise<void>;
     panel(resource: PanelDetailResource, id: string | number, options?: RequestOptions): Promise<void>;
+  };
+  nav: {
+    /**
+     * Panelin sol menüsünde uygulamanın altındaki bağlantıları ayarlar (en fazla 8).
+     * Tıklanan bağlantı iframe'i o yolla yeniden yükler; panel listeyi tarayıcıda saklar.
+     */
+    set(items: NavItem[], options?: RequestOptions): Promise<void>;
   };
   /** Panelin seçicisini açar. Varsayılan olarak zaman aşımı yoktur. */
   pickResource(options: PickOptions): Promise<PickResult>;
@@ -291,6 +299,12 @@ export function createApp(options: AppOptions = {}): App {
           return empty('navigate.panel', { resource, id: String(idOrOptions) }, maybeOptions);
         }
         return empty('navigate.panel', { resource }, idOrOptions);
+      },
+    },
+
+    nav: {
+      set(items, requestOptions) {
+        return empty('nav.set', { items: items.map(({ label, path }) => ({ label, path })) }, requestOptions);
       },
     },
 
