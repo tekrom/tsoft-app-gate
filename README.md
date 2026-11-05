@@ -164,6 +164,34 @@ Ham istek. Pakette henüz sarmalayıcısı olmayan bir mesaj tipini göndermek i
 
 Dinleyiciyi kaldırır, bekleyen istekleri `destroyed` hatasıyla reddeder.
 
+## Panel aksiyonları
+
+Uygulama `tsoft.app.toml` dosyasında `[[extensions]]` ile mağaza panelinin sipariş, ürün ve müşteri sayfalarındaki **Uygulamalar** menüsüne aksiyon ekleyebilir. Aksiyona tıklanınca panel uygulamayı her zamanki gibi iframe'de açar; yeni bir köprü mesajı yoktur, seçim adres sorgusunda gelir:
+
+```text
+https://uygulama.com/app/invoice?target=admin.order.list.actions&ids=1042,1043&session=<jwt>
+```
+
+| Parametre | Değer |
+|---|---|
+| `target` | `admin.order.list.actions`, `admin.order.detail.actions`, `admin.product.list.actions`, `admin.product.detail.actions`, `admin.customer.list.actions`, `admin.customer.detail.actions` |
+| `ids` | Virgülle ayrılmış kayıt id'leri (Admin API `id`'si; sipariş numarası ya da ürün kodu değil). En çok 250. Detay sayfasından tek id. |
+
+Yol, aksiyonun `path` değerinin `app_url` dizinine eklenmesiyle oluşur (`app_url` `https://uygulama.com/app`, `path` `/invoice` → `/app/invoice`). Kayıtları sunucuda, mağazanın Admin API token'ıyla `filter[id]` ile çekin; adresteki id'lere güvenmeyin.
+
+Tek sayfalı uygulamalarda iki şeye dikkat edin:
+
+- Yönlendirici aksiyonun yolunu tanımalı. Tanımadığı yolu ana sayfaya atarsa `target` ve `ids` kaybolur ve `navigate.app` panel adresini de ana sayfaya çevirir.
+- `navigate.app`'e sorguyla birlikte tam yolu verin (`to.fullPath`). Yalnız `to.path` verilirse panel adresinden `ids` düşer ve sayfa yenilenince seçim gelmez.
+
+```ts
+const params = new URLSearchParams(location.search);
+const target = params.get('target');
+const ids = (params.get('ids') ?? '').split(',').filter((id) => /^\d+$/.test(id));
+```
+
+Tanım, hedefler ve kurallar için: [Panele Gömülü Uygulamalar → Panel aksiyonları](https://developer.tsoft.com.tr/uygulama-gelistirme/embedded-uygulamalar#panel-aksiyonları).
+
 ## Hatalar
 
 Tüm reddedilen promise'ler `AppBridgeError` taşır; `code` alanı aşağıdakilerden biridir.
@@ -191,6 +219,7 @@ Panel uygulamanın `app_url` adresini (yalnız `https`, panel origin'inden farkl
 
 - `session`: Oturum JWT'si.
 - `code`: Yalnız kurulumdan hemen sonraki ilk açılışta, kurulum kodu.
+- `target` ve `ids`: Uygulama bir panel aksiyonundan açıldıysa ([Panel aksiyonları](#panel-aksiyonları)).
 - Panel URL'inde `?path=/x` varsa uygulama `app_url` origin'i altındaki `/x` yolundan açılır. `?path=` panel tarafında değişirse (alt menü bağlantısı) iframe o yolla yeniden yüklenir; `navigate.app`'in yazdığı yol yeniden yükleme yapmaz.
 
 iframe `sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads"`, `allow="clipboard-write"` ve `referrerpolicy="strict-origin"` ile açılır. Üst pencereye yönlendirme (`allow-top-navigation`) yoktur; panelde gezinmek için `navigate.panel` kullanılır.
