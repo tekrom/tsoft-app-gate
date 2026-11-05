@@ -50,6 +50,7 @@ export interface RequestPayloads {
   'resource.pick': { type: PickableResource; multiple?: boolean };
   'size.set': { height: number };
   'nav.set': { items: NavItem[] };
+  'modal.close': { refresh?: boolean };
 }
 
 export interface ResponsePayloads {
@@ -61,6 +62,7 @@ export interface ResponsePayloads {
   'resource.pick': { ids: Array<string | number>; cancelled?: boolean };
   'size.set': Record<string, never>;
   'nav.set': Record<string, never>;
+  'modal.close': Record<string, never>;
 }
 
 export type RequestType = keyof RequestPayloads;

@@ -140,6 +140,17 @@ Panel son gönderilen listeyi uygulama başına tarayıcıda saklar; menü bir s
 await app.nav.set([{ label: 'Gönderiler', path: '/shipments' }, { label: 'Ayarlar', path: '/settings' }]);
 ```
 
+### `modal.close({ refresh? })`
+
+Uygulama bir **modal aksiyondan** (`[[extensions]]` hedefi `admin.{order,product,customer}.detail.action`) açıldıysa modalı kapatır. `refresh: true` panelin o sayfanın verisini (sipariş, ürün, müşteri) yeniden yüklemesini ister; örneğin uygulama siparişe fatura yazdıysa. Uygulama tam sayfada (`/apps/open`) açıldıysa `unsupported_type` döner.
+
+Modalda `navigate.app` panel adresini değiştirmez; `navigate.panel` modalı kapatıp panelde o sayfaya gider. Diğer bütün çağrılar tam sayfadaki gibi çalışır.
+
+```ts
+await saveInvoice();
+await app.modal.close({ refresh: true });
+```
+
 ### `pickResource({ type, multiple? })`
 
 Panelin seçicisini açar, seçilen kayıtların kimliklerini döner: `{ ids, cancelled }`. Kullanıcı pencereyi kapatırsa `{ ids: [], cancelled: true }`. Varsayılan olarak zaman aşımı yoktur.
@@ -229,6 +240,7 @@ Kurallar:
 | `resource.pick` | `{ type, multiple? }` | `{ ids, cancelled? }` | `unsupported_resource`, `missing_scope` |
 | `size.set` | `{ height }` | `{}` | `invalid_payload` |
 | `nav.set` | `{ items: [{ label, path }] }` | `{}` | `invalid_payload` |
+| `modal.close` | `{ refresh? }` | `{}` | `unsupported_type` (tam sayfada) |
 | diğer | — | — | `unsupported_type` |
 
 `confirm.open` ve `resource.pick` yanıtı kullanıcı işlem yapınca gelir.

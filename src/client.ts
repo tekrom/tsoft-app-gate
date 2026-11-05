@@ -115,6 +115,13 @@ export interface App {
      */
     set(items: NavItem[], options?: RequestOptions): Promise<void>;
   };
+  modal: {
+    /**
+     * Uygulama bir modal aksiyondan (`[[extensions]]` `.detail.action`) açıldıysa modalı kapatır.
+     * `refresh: true` panelin o sayfanın verisini yeniden yüklemesini ister. Tam sayfada açılmışsa `unsupported_type`.
+     */
+    close(options?: { refresh?: boolean } & RequestOptions): Promise<void>;
+  };
   /** Panelin seçicisini açar. Varsayılan olarak zaman aşımı yoktur. */
   pickResource(options: PickOptions): Promise<PickResult>;
   /** iframe yüksekliğini ayarlar; panel 300–5000 px aralığına sıkıştırır. */
@@ -305,6 +312,12 @@ export function createApp(options: AppOptions = {}): App {
     nav: {
       set(items, requestOptions) {
         return empty('nav.set', { items: items.map(({ label, path }) => ({ label, path })) }, requestOptions);
+      },
+    },
+
+    modal: {
+      close({ refresh, ...requestOptions } = {}) {
+        return empty('modal.close', { refresh: refresh === true }, requestOptions);
       },
     },
 
