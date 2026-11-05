@@ -122,6 +122,18 @@ test('nav.set yalnız label ve path gönderir', async () => {
   app.destroy();
 });
 
+test('modal.close yalnız refresh bayrağını gönderir', async () => {
+  const { sent } = setup();
+  const app = createApp();
+  await app.modal.close();
+  await app.modal.close({ refresh: true });
+  assert.deepEqual(sent.map((s) => [s.message.type, s.message.payload]), [
+    ['modal.close', { refresh: false }],
+    ['modal.close', { refresh: true }],
+  ]);
+  app.destroy();
+});
+
 test('destroy bekleyen istekleri reddeder', async () => {
   setup({ handler: () => undefined });
   const app = createApp();
