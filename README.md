@@ -9,7 +9,7 @@ npm install @tekrom/tsoft-app-gate
 Paketleyici kullanmıyorsanız tarayıcı derlemesini `<script>` ile yükleyin; aynı API `TSoftAppGate` global'i altında gelir:
 
 ```html
-<script src="https://cdn.jsdelivr.net/npm/@tekrom/tsoft-app-gate@0.4/dist/tsoft-app-gate.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tekrom/tsoft-app-gate@0.5/dist/tsoft-app-gate.min.js"></script>
 <script>
   const app = TSoftAppGate.createApp();
 </script>
