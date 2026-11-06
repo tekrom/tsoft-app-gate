@@ -101,11 +101,13 @@ test('confirm, navigate ve pickResource yükleri', async () => {
   await app.navigate.panel('order', 42);
   await app.navigate.app('/ayarlar?sekme=2');
   assert.deepEqual(await app.pickResource({ type: 'product', multiple: true }), { ids: [7, 9], cancelled: false });
+  assert.deepEqual(await app.pickResource({ type: 'category' }), { ids: [7, 9], cancelled: false });
   assert.deepEqual(sent.map((s) => [s.message.type, s.message.payload]), [
     ['confirm.open', { message: 'Silinsin mi?', title: undefined, confirmText: undefined }],
     ['navigate.panel', { resource: 'order', id: '42' }],
     ['navigate.app', { path: '/ayarlar?sekme=2' }],
     ['resource.pick', { type: 'product', multiple: true }],
+    ['resource.pick', { type: 'category', multiple: false }],
   ]);
   app.destroy();
 });
