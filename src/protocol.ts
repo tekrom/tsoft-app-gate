@@ -28,8 +28,11 @@ export type PanelListResource = 'orders' | 'products' | 'apps';
 export type PanelDetailResource = 'order' | 'product';
 export type PanelResource = PanelListResource | PanelDetailResource;
 
-/** Seçici türü ve istediği kapsam: `product` → `read_products`. */
-export type PickableResource = 'product';
+/**
+ * Seçici türü ve istediği kapsam: `product` ve `category` → `read_products`.
+ * `category` eski panellerde `unsupported_resource` döner.
+ */
+export type PickableResource = 'product' | 'category';
 
 /**
  * Panelin sol menüsünde uygulamanın adı altında görünen bağlantı. `path` uygulamanın

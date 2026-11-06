@@ -158,8 +158,17 @@ Panelin seçicisini açar, seçilen kayıtların kimliklerini döner: `{ ids, ca
 | `type` | Gerekli kapsam |
 |---|---|
 | `product` | `read_products` |
+| `category` | `read_products` (panel kategori ağacı; eski panellerde `unsupported_resource`) |
 
-Kapsam yoksa `missing_scope`, bilinmeyen tür `unsupported_resource` döner. Seçici açıkken yeni bir seçim istenirse önceki istek `cancelled: true` ile kapanır.
+Kapsam yoksa `missing_scope`, bilinmeyen tür `unsupported_resource` döner. Kategori seçicisi yeni bir türdür; desteklemeyen panelde kendi seçicinize düşün:
+
+```js
+try {
+  const { ids, cancelled } = await app.pickResource({ type: 'category' });
+} catch (e) {
+  if (e.code === 'unsupported_resource') openOwnCategoryPicker();
+}
+``` Seçici açıkken yeni bir seçim istenirse önceki istek `cancelled: true` ile kapanır.
 
 ### `setHeight(height)` ve `autoResize({ target? })`
 
