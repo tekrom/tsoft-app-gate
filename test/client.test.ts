@@ -136,6 +136,30 @@ test('modal.close yalnız refresh bayrağını gönderir', async () => {
   app.destroy();
 });
 
+test('billing.confirm kimliği gönderir, zaman aşımı yoktur, durumu döner', async () => {
+  const { sent } = setup({
+    handler: (m) => (m.payload.id === 'yok' ? { ok: false, error: 'charge_not_found' } : { ok: true, payload: { status: m.payload.id === 'garip' ? 'paid' : 'active' } }),
+  });
+  const app = createApp({ timeout: 1 });
+  assert.deepEqual(await app.billing.confirm({ id: 'c-1' }), { status: 'active' });
+  assert.deepEqual(await app.billing.confirm({ id: 'garip' }), { status: 'pending' }, 'tanınmayan durum pending sayılır');
+  await assert.rejects(app.billing.confirm({ id: 'yok' }), (e: any) => e instanceof AppBridgeError && e.code === 'charge_not_found');
+  assert.deepEqual(sent[0].message.type, 'billing.confirm');
+  assert.deepEqual(sent[0].message.payload, { id: 'c-1' });
+  app.destroy();
+
+  setup({ handler: () => undefined });
+  const slow = createApp({ timeout: 1 });
+  const waiting = slow.billing.confirm({ id: 'c-2' });
+  let settled = false;
+  waiting.catch(() => {}).finally(() => (settled = true));
+  await new Promise((r) => setTimeout(r, 20));
+  assert.equal(settled, false, 'varsayılan zaman aşımı uygulanmaz');
+  await assert.rejects(slow.billing.confirm({ id: 'c-3', timeout: 5 }), (e: any) => e.code === 'timeout');
+  slow.destroy();
+  await assert.rejects(waiting, (e: any) => e.code === 'destroyed');
+});
+
 test('destroy bekleyen istekleri reddeder', async () => {
   setup({ handler: () => undefined });
   const app = createApp();
