@@ -3,6 +3,7 @@ import {
   BRIDGE_VERSION,
   PANEL_SOURCE,
   type BridgeErrorCode,
+  type ChargeStatus,
   type NavItem,
   type PanelDetailResource,
   type PanelListResource,
@@ -85,6 +86,15 @@ export interface PickResult {
   cancelled: boolean;
 }
 
+export interface BillingConfirmOptions extends RequestOptions {
+  /** Uygulamanın sunucusunun Admin API ile oluşturduğu tek seferlik ücretin kimliği. */
+  id: string;
+}
+
+export interface BillingConfirmResult {
+  status: ChargeStatus;
+}
+
 export interface AutoResizeOptions {
   /** Yüksekliği ölçülecek öğe. Varsayılan `document.body`. */
   target?: Element;
@@ -122,6 +132,15 @@ export interface App {
      */
     close(options?: { refresh?: boolean } & RequestOptions): Promise<void>;
   };
+  billing: {
+    /**
+     * Tek seferlik ücretin onay ekranını panelde açar; kullanıcı onaylar ve öderse `active`,
+     * reddederse `declined`, ekranı kapatırsa son bilinen durum (çoğunlukla `pending`) döner.
+     * Ödeme dakikalar sürebileceği için varsayılan olarak zaman aşımı yoktur. Sonucu her zaman
+     * sunucunuzda Admin API ile doğrulayın.
+     */
+    confirm(options: BillingConfirmOptions): Promise<BillingConfirmResult>;
+  };
   /** Panelin seçicisini açar. Varsayılan olarak zaman aşımı yoktur. */
   pickResource(options: PickOptions): Promise<PickResult>;
   /** iframe yüksekliğini ayarlar; panel 300–5000 px aralığına sıkıştırır. */
@@ -135,6 +154,7 @@ export interface App {
 }
 
 const DEFAULT_TIMEOUT = 10_000;
+const CHARGE_STATUSES: readonly ChargeStatus[] = ['pending', 'active', 'declined', 'expired'];
 // Token 60 sn yaşar; sunucuya giderken süresi dolmasın diye 15 sn kala yenilenir.
 const REFRESH_MARGIN = 15_000;
 
@@ -318,6 +338,14 @@ export function createApp(options: AppOptions = {}): App {
     modal: {
       close({ refresh, ...requestOptions } = {}) {
         return empty('modal.close', { refresh: refresh === true }, requestOptions);
+      },
+    },
+
+    billing: {
+      async confirm({ id, ...rest }) {
+        const response = await request('billing.confirm', { id: String(id) }, rest, 0);
+        // Tanınmayan durum, ödenmiş sayılmasın diye `pending` kabul edilir.
+        return { status: CHARGE_STATUSES.includes(response.status) ? response.status : 'pending' };
       },
     },
 

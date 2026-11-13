@@ -34,6 +34,9 @@ export type PanelResource = PanelListResource | PanelDetailResource;
  */
 export type PickableResource = 'product' | 'category';
 
+/** Tek seferlik ücretin durumu. */
+export type ChargeStatus = 'pending' | 'active' | 'declined' | 'expired';
+
 /**
  * Panelin sol menüsünde uygulamanın adı altında görünen bağlantı. `path` uygulamanın
  * kendi adresi altında `/` ile başlayan yol olmalı (`/orders?status=1` gibi); etiket
@@ -54,6 +57,7 @@ export interface RequestPayloads {
   'size.set': { height: number };
   'nav.set': { items: NavItem[] };
   'modal.close': { refresh?: boolean };
+  'billing.confirm': { id: string };
 }
 
 export interface ResponsePayloads {
@@ -66,6 +70,7 @@ export interface ResponsePayloads {
   'size.set': Record<string, never>;
   'nav.set': Record<string, never>;
   'modal.close': Record<string, never>;
+  'billing.confirm': { status: ChargeStatus };
 }
 
 export type RequestType = keyof RequestPayloads;
@@ -82,6 +87,7 @@ export type BridgeErrorCode =
   | 'missing_scope'
   | 'unsupported_resource'
   | 'unsupported_type'
+  | 'charge_not_found'
   | 'internal_error'
   // istemci
   | 'timeout'

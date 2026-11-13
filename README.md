@@ -1,6 +1,6 @@
 # T-Soft App Gate
 
-T-Soft paneli içinde (iframe) açılan uygulamalar için **App Bridge** istemcisi. Uygulama, panelden oturum token'ı alır; panelin bildirim, onay penceresi, ürün seçici ve gezinme bileşenlerini kullanır; iframe yüksekliğini ayarlar. Tüm çağrılar promise döner, zaman aşımına ve hata kodlarına sahiptir.
+T-Soft paneli içinde (iframe) açılan uygulamalar için **App Bridge** istemcisi. Uygulama, panelden oturum token'ı alır; panelin bildirim, onay penceresi, ürün seçici, ödeme onayı ve gezinme bileşenlerini kullanır; iframe yüksekliğini ayarlar. Tüm çağrılar promise döner, zaman aşımına ve hata kodlarına sahiptir.
 
 ```bash
 npm install @tekrom/tsoft-app-gate
@@ -56,6 +56,9 @@ await app.nav.set([
 ]);
 
 const stop = app.autoResize();
+
+// Tek seferlik ücret: sunucunuz Admin API ile ücreti oluşturur, kimliği buraya verir.
+const { status } = await app.billing.confirm({ id: chargeId });
 ```
 
 ## API
@@ -170,6 +173,26 @@ try {
 }
 ``` Seçici açıkken yeni bir seçim istenirse önceki istek `cancelled: true` ile kapanır.
 
+### `billing.confirm({ id })`
+
+Tek seferlik ücretin (Admin API `app-one-time-charges`) onay ekranını panelde açar. Mağaza sahibi uygulama adını, ücretin adını, KDV hariç fiyatı, KDV'yi ve toplamı görür; onaylarsa panel ödeme ekranını açar. Sonuç `{ status }`:
+
+| `status` | Anlamı |
+|---|---|
+| `active` | Onaylandı ve ödendi (test ücretinde hemen). |
+| `declined` | Mağaza sahibi reddetti. |
+| `pending` | Ekran ödeme bitmeden kapatıldı; ödeme sonradan tamamlanabilir. |
+| `expired` | Ücret 48 saat içinde onaylanmadı; yenisini oluşturun. |
+
+Ödeme dakikalar sürebildiği için **varsayılan olarak zaman aşımı yoktur.** Dönen durum yalnız arayüz içindir; hizmeti açmadan önce durumu **sunucunuzda Admin API ile doğrulayın.** `pending` dönen ücret sonradan `active` olabilir.
+
+Kimlik başka bir uygulamanın ücretine aitse ya da bulunamazsa `charge_not_found` döner. Eski panellerde `unsupported_type` döner; o durumda mağaza sahibini ücretin onay sayfasına (`/apps/charges/{id}`) yönlendirebilirsiniz.
+
+```ts
+const { status } = await app.billing.confirm({ id: charge.id });
+if (status === 'active') await refreshCredits(); // sunucu Admin API'den doğrular
+```
+
 ### `setHeight(height)` ve `autoResize({ target? })`
 
 `setHeight` iframe yüksekliğini piksel olarak ayarlar; panel değeri 300–5000 aralığına sıkıştırır. Yükseklik hiç bildirilmezse iframe görünür alanı doldurur.
@@ -196,6 +219,7 @@ Tüm reddedilen promise'ler `AppBridgeError` taşır; `code` alanı aşağıdaki
 | `missing_scope` | panel | Uygulamanın bu iş için gereken kapsamı yok. |
 | `unsupported_resource` | panel | `pickResource` türü desteklenmiyor. |
 | `unsupported_type` | panel | Panel bu mesaj tipini tanımıyor (eski panel sürümü). |
+| `charge_not_found` | panel | `billing.confirm` kimliği bu uygulamanın bir ücreti değil. |
 | `internal_error` | panel | Panel isteği işlerken hata aldı (ör. token alınamadı). |
 | `timeout` | istemci | Süre içinde yanıt gelmedi. |
 | `not_embedded` | istemci | Uygulama panel iframe'i içinde değil ya da üst pencere bir T-Soft paneli değil. |
@@ -250,9 +274,10 @@ Kurallar:
 | `size.set` | `{ height }` | `{}` | `invalid_payload` |
 | `nav.set` | `{ items: [{ label, path }] }` | `{}` | `invalid_payload` |
 | `modal.close` | `{ refresh? }` | `{}` | `unsupported_type` (tam sayfada) |
+| `billing.confirm` | `{ id }` | `{ status }` | `invalid_payload`, `charge_not_found`, `internal_error` |
 | diğer | — | — | `unsupported_type` |
 
-`confirm.open` ve `resource.pick` yanıtı kullanıcı işlem yapınca gelir.
+`confirm.open`, `resource.pick` ve `billing.confirm` yanıtı kullanıcı işlem yapınca gelir.
 
 ### Eski token mesajı
 
