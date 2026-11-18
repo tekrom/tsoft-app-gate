@@ -193,6 +193,16 @@ const { status } = await app.billing.confirm({ id: charge.id });
 if (status === 'active') await refreshCredits(); // sunucu Admin API'den doğrular
 ```
 
+### `billing.selectPlan()`
+
+Panelin plan seçme ekranını açar. Mağaza sahibi, partner panelinde tanımladığınız planları görür, birini seçer ve ücretliyse öder; ardından panel uygulamanızı yeniden açar. Ekran değişirken iframe kapanır, bu yüzden promise sonucu beklemeden çözülür. Yeni planı uygulama yeniden açılınca sunucunuzda Admin API'den (`integration/app-subscriptions`) okuyun ya da `app_subscription.updated` olayını dinleyin.
+
+Uygulamanın planı yoksa `no_plans` döner. Eski panellerde `unsupported_type` döner.
+
+```ts
+upgradeButton.onclick = () => app.billing.selectPlan();
+```
+
 ### `setHeight(height)` ve `autoResize({ target? })`
 
 `setHeight` iframe yüksekliğini piksel olarak ayarlar; panel değeri 300–5000 aralığına sıkıştırır. Yükseklik hiç bildirilmezse iframe görünür alanı doldurur.
@@ -220,6 +230,7 @@ Tüm reddedilen promise'ler `AppBridgeError` taşır; `code` alanı aşağıdaki
 | `unsupported_resource` | panel | `pickResource` türü desteklenmiyor. |
 | `unsupported_type` | panel | Panel bu mesaj tipini tanımıyor (eski panel sürümü). |
 | `charge_not_found` | panel | `billing.confirm` kimliği bu uygulamanın bir ücreti değil. |
+| `no_plans` | panel | `billing.selectPlan`: uygulamanın partner panelinde tanımlı planı yok. |
 | `internal_error` | panel | Panel isteği işlerken hata aldı (ör. token alınamadı). |
 | `timeout` | istemci | Süre içinde yanıt gelmedi. |
 | `not_embedded` | istemci | Uygulama panel iframe'i içinde değil ya da üst pencere bir T-Soft paneli değil. |
@@ -275,6 +286,7 @@ Kurallar:
 | `nav.set` | `{ items: [{ label, path }] }` | `{}` | `invalid_payload` |
 | `modal.close` | `{ refresh? }` | `{}` | `unsupported_type` (tam sayfada) |
 | `billing.confirm` | `{ id }` | `{ status }` | `invalid_payload`, `charge_not_found`, `internal_error` |
+| `billing.selectPlan` | `{}` | `{}` (panel plan ekranına geçer) | `no_plans` |
 | diğer | — | — | `unsupported_type` |
 
 `confirm.open`, `resource.pick` ve `billing.confirm` yanıtı kullanıcı işlem yapınca gelir.

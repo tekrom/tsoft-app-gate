@@ -58,6 +58,7 @@ export interface RequestPayloads {
   'nav.set': { items: NavItem[] };
   'modal.close': { refresh?: boolean };
   'billing.confirm': { id: string };
+  'billing.selectPlan': Record<string, never>;
 }
 
 export interface ResponsePayloads {
@@ -71,6 +72,7 @@ export interface ResponsePayloads {
   'nav.set': Record<string, never>;
   'modal.close': Record<string, never>;
   'billing.confirm': { status: ChargeStatus };
+  'billing.selectPlan': Record<string, never>;
 }
 
 export type RequestType = keyof RequestPayloads;
@@ -88,6 +90,8 @@ export type BridgeErrorCode =
   | 'unsupported_resource'
   | 'unsupported_type'
   | 'charge_not_found'
+  // billing.selectPlan: uygulamanın partner panelinde tanımlı planı yok (V5-14243)
+  | 'no_plans'
   | 'internal_error'
   // istemci
   | 'timeout'
