@@ -193,6 +193,16 @@ const { status } = await app.billing.confirm({ id: charge.id });
 if (status === 'active') await refreshCredits(); // sunucu Admin API'den doğrular
 ```
 
+### `billing.selectPlan()`
+
+Panelin plan seçme ekranını açar. Mağaza sahibi, partner panelinde tanımladığınız planları görür, birini seçer ve ücretliyse öder; ardından panel uygulamanızı yeniden açar. Ekran değişirken iframe kapanır, bu yüzden promise sonucu beklemeden çözülür. Yeni planı uygulama yeniden açılınca sunucunuzda Admin API'den (`integration/app-subscriptions`) okuyun ya da `app_subscription.updated` olayını dinleyin.
+
+Uygulamanın planı yoksa panel normal kurulum ekranını açar. Eski panellerde `unsupported_type` döner.
+
+```ts
+upgradeButton.onclick = () => app.billing.selectPlan();
+```
+
 ### `setHeight(height)` ve `autoResize({ target? })`
 
 `setHeight` iframe yüksekliğini piksel olarak ayarlar; panel değeri 300–5000 aralığına sıkıştırır. Yükseklik hiç bildirilmezse iframe görünür alanı doldurur.
@@ -275,6 +285,7 @@ Kurallar:
 | `nav.set` | `{ items: [{ label, path }] }` | `{}` | `invalid_payload` |
 | `modal.close` | `{ refresh? }` | `{}` | `unsupported_type` (tam sayfada) |
 | `billing.confirm` | `{ id }` | `{ status }` | `invalid_payload`, `charge_not_found`, `internal_error` |
+| `billing.selectPlan` | `{}` | `{}` (panel plan ekranına geçer) | — |
 | diğer | — | — | `unsupported_type` |
 
 `confirm.open`, `resource.pick` ve `billing.confirm` yanıtı kullanıcı işlem yapınca gelir.

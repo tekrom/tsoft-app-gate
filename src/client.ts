@@ -140,6 +140,12 @@ export interface App {
      * sunucunuzda Admin API ile doğrulayın.
      */
     confirm(options: BillingConfirmOptions): Promise<BillingConfirmResult>;
+    /**
+     * Panelin plan seçme ekranını açar: mağaza sahibi partner panelinde tanımladığınız planlardan birini
+     * seçer, ücretliyse öder; ardından panel uygulamanızı yeniden açar. Promise, panel ekrana geçerken
+     * çözülür (iframe kapanır). Yeni planı uygulama açılınca Admin API'den (`app-subscriptions`) okuyun.
+     */
+    selectPlan(options?: RequestOptions): Promise<void>;
   };
   /** Panelin seçicisini açar. Varsayılan olarak zaman aşımı yoktur. */
   pickResource(options: PickOptions): Promise<PickResult>;
@@ -346,6 +352,9 @@ export function createApp(options: AppOptions = {}): App {
         const response = await request('billing.confirm', { id: String(id) }, rest, 0);
         // Tanınmayan durum, ödenmiş sayılmasın diye `pending` kabul edilir.
         return { status: CHARGE_STATUSES.includes(response.status) ? response.status : 'pending' };
+      },
+      selectPlan(requestOptions = {}) {
+        return empty('billing.selectPlan', {}, requestOptions);
       },
     },
 
