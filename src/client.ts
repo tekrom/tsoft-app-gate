@@ -144,7 +144,6 @@ export interface App {
      * Panelin plan seçme ekranını açar: mağaza sahibi partner panelinde tanımladığınız planlardan birini
      * seçer, ücretliyse öder; ardından panel uygulamanızı yeniden açar. Promise, panel ekrana geçerken
      * çözülür (iframe kapanır). Yeni planı uygulama açılınca Admin API'den (`app-subscriptions`) okuyun.
-     * Uygulamanın planı yoksa `no_plans` döner.
      */
     selectPlan(options?: RequestOptions): Promise<void>;
   };

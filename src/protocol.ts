@@ -90,8 +90,6 @@ export type BridgeErrorCode =
   | 'unsupported_resource'
   | 'unsupported_type'
   | 'charge_not_found'
-  // billing.selectPlan: uygulamanın partner panelinde tanımlı planı yok (V5-14243)
-  | 'no_plans'
   | 'internal_error'
   // istemci
   | 'timeout'

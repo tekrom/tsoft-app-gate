@@ -160,18 +160,13 @@ test('billing.confirm kimliği gönderir, zaman aşımı yoktur, durumu döner',
   await assert.rejects(waiting, (e: any) => e.code === 'destroyed');
 });
 
-test('billing.selectPlan plan seçimini açar; planı olmayan uygulamada no_plans', async () => {
+test('billing.selectPlan plan seçimini açar', async () => {
   const { sent } = setup({ handler: () => ({ ok: true, payload: {} }) });
   const app = createApp();
   assert.equal(await app.billing.selectPlan(), undefined);
   assert.equal(sent[0].message.type, 'billing.selectPlan');
   assert.deepEqual(sent[0].message.payload, {});
   app.destroy();
-
-  setup({ handler: () => ({ ok: false, error: 'no_plans' }) });
-  const none = createApp();
-  await assert.rejects(none.billing.selectPlan(), (e: any) => e instanceof AppBridgeError && e.code === 'no_plans');
-  none.destroy();
 });
 
 test('destroy bekleyen istekleri reddeder', async () => {
