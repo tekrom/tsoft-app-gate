@@ -7,6 +7,7 @@ import {
   type NavItem,
   type PanelDetailResource,
   type PanelListResource,
+  type PickableFileExtension,
   type PickableResource,
   type RequestPayloads,
   type RequestType,
@@ -86,6 +87,19 @@ export interface PickResult {
   cancelled: boolean;
 }
 
+export interface PickFileOptions extends RequestOptions {
+  /** İzin verilen uzantılar; verilmezse bütün görsel uzantıları. */
+  accept?: PickableFileExtension[];
+}
+
+export interface PickFileResult {
+  /** Mağaza içi yol (panelin kaydettiği biçim); iptalde `null`. */
+  url: string | null;
+  /** Görseli göstermek için tam adres; iptalde `null`. */
+  previewUrl: string | null;
+  cancelled: boolean;
+}
+
 export interface BillingConfirmOptions extends RequestOptions {
   /** Uygulamanın sunucusunun Admin API ile oluşturduğu tek seferlik ücretin kimliği. */
   id: string;
@@ -149,6 +163,8 @@ export interface App {
   };
   /** Panelin seçicisini açar. Varsayılan olarak zaman aşımı yoktur. */
   pickResource(options: PickOptions): Promise<PickResult>;
+  /** Panelin dosya yöneticisini açar, seçilen görselin adresini döner. Varsayılan olarak zaman aşımı yoktur. */
+  pickFile(options?: PickFileOptions): Promise<PickFileResult>;
   /** iframe yüksekliğini ayarlar; panel 300–5000 px aralığına sıkıştırır. */
   setHeight(height: number, options?: RequestOptions): Promise<void>;
   /** İçerik boyu değiştikçe yüksekliği bildirir; durdurmak için dönen fonksiyonu çağırın. */
@@ -361,6 +377,16 @@ export function createApp(options: AppOptions = {}): App {
     async pickResource({ type, multiple, ...rest }) {
       const response = await request('resource.pick', { type, multiple: multiple === true }, rest, 0);
       return { ids: Array.isArray(response.ids) ? response.ids : [], cancelled: response.cancelled === true };
+    },
+
+    async pickFile({ accept, ...rest } = {}) {
+      const response = await request('files.pick', accept ? { accept: [...accept] } : {}, rest, 0);
+      const url = typeof response.url === 'string' && response.url !== '' ? response.url : null;
+      return {
+        url,
+        previewUrl: url && typeof response.previewUrl === 'string' ? response.previewUrl : null,
+        cancelled: response.cancelled === true || url === null,
+      };
     },
 
     setHeight(height, requestOptions) {
