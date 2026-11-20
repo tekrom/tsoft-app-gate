@@ -173,6 +173,21 @@ try {
 }
 ``` Seçici açıkken yeni bir seçim istenirse önceki istek `cancelled: true` ile kapanır.
 
+### `pickFile({ accept? })`
+
+Panelin dosya yöneticisini açar; mağaza sahibi bir görsel seçer ya da yükler. Sonuç `{ url, previewUrl, cancelled }`:
+
+- `url`: mağaza içi yol, panelin kendi görsel alanlarına kaydettiği biçim (`Data/…` gibi). Admin API'ye bu değeri yazın.
+- `previewUrl`: görseli göstermek için mağaza alan adıyla birleşmiş tam adres.
+- Kullanıcı pencereyi kapatırsa `{ url: null, previewUrl: null, cancelled: true }`.
+
+`accept` izin verilen uzantılardır (`png`, `jpg`, `jpeg`, `webp`, `svg`, `gif`); verilmezse hepsi. Klasör ve izin verilmeyen uzantı seçilemez. Ek kapsam gerekmez: uygulama dosya alanına erişmez, yalnız kullanıcının seçtiği dosyanın adresini alır. Varsayılan olarak zaman aşımı yoktur. Eski panellerde `unsupported_type` döner.
+
+```js
+const { url, previewUrl, cancelled } = await app.pickFile({ accept: ['png', 'jpg', 'webp'] });
+if (!cancelled) setBanner(url, previewUrl);
+```
+
 ### `billing.confirm({ id })`
 
 Tek seferlik ücretin (Admin API `app-one-time-charges`) onay ekranını panelde açar. Mağaza sahibi uygulama adını, ücretin adını, KDV hariç fiyatı, KDV'yi ve toplamı görür; onaylarsa panel ödeme ekranını açar. Sonuç `{ status }`:
@@ -281,6 +296,7 @@ Kurallar:
 | `navigate.app` | `{ path }` | `{}` | `invalid_path` |
 | `navigate.panel` | `{ resource, id? }` | `{}` | `invalid_route` |
 | `resource.pick` | `{ type, multiple? }` | `{ ids, cancelled? }` | `unsupported_resource`, `missing_scope` |
+| `files.pick` | `{ accept? }` | `{ url, previewUrl, cancelled? }` | `invalid_payload` |
 | `size.set` | `{ height }` | `{}` | `invalid_payload` |
 | `nav.set` | `{ items: [{ label, path }] }` | `{}` | `invalid_payload` |
 | `modal.close` | `{ refresh? }` | `{}` | `unsupported_type` (tam sayfada) |
@@ -288,7 +304,7 @@ Kurallar:
 | `billing.selectPlan` | `{}` | `{}` (panel plan ekranına geçer) | — |
 | diğer | — | — | `unsupported_type` |
 
-`confirm.open`, `resource.pick` ve `billing.confirm` yanıtı kullanıcı işlem yapınca gelir.
+`confirm.open`, `resource.pick`, `files.pick` ve `billing.confirm` yanıtı kullanıcı işlem yapınca gelir.
 
 ### Eski token mesajı
 

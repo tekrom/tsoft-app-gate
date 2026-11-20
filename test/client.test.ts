@@ -92,6 +92,33 @@ test('URL\'deki geçerli token önbellekten döner, süresi yakınsa yenilenir',
   expiring.destroy();
 });
 
+test('pickFile seçilen görselin yolunu ve önizleme adresini döner, iptal cancelled olur', async () => {
+  const replies = [
+    { url: 'Data/Images/banner.webp', previewUrl: 'https://magaza.test/Data/Images/banner.webp' },
+    { url: null, cancelled: true },
+  ];
+  const { sent } = setup({ handler: () => ({ ok: true, payload: replies.shift() }) });
+  const app = createApp();
+  assert.deepEqual(await app.pickFile({ accept: ['png', 'webp'] }), {
+    url: 'Data/Images/banner.webp',
+    previewUrl: 'https://magaza.test/Data/Images/banner.webp',
+    cancelled: false,
+  });
+  assert.deepEqual(await app.pickFile(), { url: null, previewUrl: null, cancelled: true });
+  assert.deepEqual(sent.map((s) => [s.message.type, s.message.payload]), [
+    ['files.pick', { accept: ['png', 'webp'] }],
+    ['files.pick', {}],
+  ]);
+  app.destroy();
+});
+
+test('pickFile eski panelde unsupported_type ile reddedilir', async () => {
+  setup({ handler: () => ({ ok: false, error: 'unsupported_type' }) });
+  const app = createApp();
+  await assert.rejects(app.pickFile(), (e: any) => e.code === 'unsupported_type');
+  app.destroy();
+});
+
 test('confirm, navigate ve pickResource yükleri', async () => {
   const { sent } = setup({
     handler: (m) => ({ ok: true, payload: m.type === 'confirm.open' ? { confirmed: true } : m.type === 'resource.pick' ? { ids: [7, 9] } : {} }),

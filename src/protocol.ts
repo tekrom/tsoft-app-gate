@@ -34,6 +34,12 @@ export type PanelResource = PanelListResource | PanelDetailResource;
  */
 export type PickableResource = 'product' | 'category';
 
+/**
+ * Panelin dosya yöneticisinden seçilebilen görsel uzantıları. Uygulama dosya alanına erişmez;
+ * yalnız kullanıcının seçtiği dosyanın adresi döner. Eski panellerde `unsupported_type`.
+ */
+export type PickableFileExtension = 'png' | 'jpg' | 'jpeg' | 'webp' | 'svg' | 'gif';
+
 /** Tek seferlik ücretin durumu. */
 export type ChargeStatus = 'pending' | 'active' | 'declined' | 'expired';
 
@@ -54,6 +60,7 @@ export interface RequestPayloads {
   'navigate.app': { path: string };
   'navigate.panel': { resource: PanelResource; id?: string };
   'resource.pick': { type: PickableResource; multiple?: boolean };
+  'files.pick': { accept?: PickableFileExtension[] };
   'size.set': { height: number };
   'nav.set': { items: NavItem[] };
   'modal.close': { refresh?: boolean };
@@ -68,6 +75,7 @@ export interface ResponsePayloads {
   'navigate.app': Record<string, never>;
   'navigate.panel': Record<string, never>;
   'resource.pick': { ids: Array<string | number>; cancelled?: boolean };
+  'files.pick': { url: string | null; previewUrl?: string | null; cancelled?: boolean };
   'size.set': Record<string, never>;
   'nav.set': Record<string, never>;
   'modal.close': Record<string, never>;
