@@ -40,6 +40,12 @@ export type PickableResource = 'product' | 'category';
  */
 export type PickableFileExtension = 'png' | 'jpg' | 'jpeg' | 'webp' | 'svg' | 'gif';
 
+/**
+ * Kaydetme çubuğundaki düğme: `save` (Kaydet), `discard` (Vazgeç). `dismissed`: çubuk kullanıcı düğmeye basmadan
+ * kapandı (uygulama `hide` çağırdı, yeni `show` geldi ya da kullanıcı sayfadan çıkmayı onayladı).
+ */
+export type SaveBarAction = 'save' | 'discard' | 'dismissed';
+
 /** Tek seferlik ücretin durumu. */
 export type ChargeStatus = 'pending' | 'active' | 'declined' | 'expired';
 
@@ -66,6 +72,8 @@ export interface RequestPayloads {
   'modal.close': { refresh?: boolean };
   'billing.confirm': { id: string };
   'billing.selectPlan': Record<string, never>;
+  'save-bar.show': { message?: string };
+  'save-bar.hide': Record<string, never>;
 }
 
 export interface ResponsePayloads {
@@ -81,6 +89,8 @@ export interface ResponsePayloads {
   'modal.close': Record<string, never>;
   'billing.confirm': { status: ChargeStatus };
   'billing.selectPlan': Record<string, never>;
+  'save-bar.show': { action: SaveBarAction };
+  'save-bar.hide': Record<string, never>;
 }
 
 export type RequestType = keyof RequestPayloads;

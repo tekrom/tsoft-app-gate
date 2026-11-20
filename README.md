@@ -188,6 +188,26 @@ const { url, previewUrl, cancelled } = await app.pickFile({ accept: ['png', 'jpg
 if (!cancelled) setBanner(url, previewUrl);
 ```
 
+### `saveBar.show({ message? })` / `saveBar.hide()`
+
+Panelin üstünde Kaydet / Vazgeç çubuğunu açar. `show` kullanıcı bir düğmeye basınca `{ action }` ile çözülür:
+
+| `action` | Anlamı |
+|---|---|
+| `save` | Kaydet'e bastı. Kaydedin; başarılıysa `hide()`, hata olduysa ya da değişiklik sürüyorsa yeniden `show()` çağırın. |
+| `discard` | Vazgeç'e bastı. Değişiklikleri geri alıp `hide()` çağırın. |
+| `dismissed` | Çubuk düğmeye basılmadan kapandı: `hide()` ya da yeni bir `show()` çağrıldı veya kullanıcı sayfadan çıkmayı onayladı. |
+
+Çubuk açıkken panel, kullanıcı panel menüsünden ya da uygulamanın alt menüsünden ayrılmak veya sekmeyi kapatmak isterse "kaydedilmemiş değişiklikler" onayı sorar. `message` en fazla 100 karakter; verilmezse panelin varsayılan metni. Varsayılan olarak zaman aşımı yoktur. Yalnız tam sayfada çalışır; detay sayfası modalında ve eski panellerde `unsupported_type` döner.
+
+```js
+async function markDirty() {
+  const { action } = await app.saveBar.show({ message: 'Sayfa düzeninde kaydedilmemiş değişiklik var' });
+  if (action === 'save') (await save()) ? app.saveBar.hide() : markDirty();
+  if (action === 'discard') { reset(); app.saveBar.hide(); }
+}
+```
+
 ### `billing.confirm({ id })`
 
 Tek seferlik ücretin (Admin API `app-one-time-charges`) onay ekranını panelde açar. Mağaza sahibi uygulama adını, ücretin adını, KDV hariç fiyatı, KDV'yi ve toplamı görür; onaylarsa panel ödeme ekranını açar. Sonuç `{ status }`:
@@ -297,6 +317,8 @@ Kurallar:
 | `navigate.panel` | `{ resource, id? }` | `{}` | `invalid_route` |
 | `resource.pick` | `{ type, multiple? }` | `{ ids, cancelled? }` | `unsupported_resource`, `missing_scope` |
 | `files.pick` | `{ accept? }` | `{ url, previewUrl, cancelled? }` | `invalid_payload` |
+| `save-bar.show` | `{ message? }` | `{ action }` | `invalid_payload`, `unsupported_type` (modalda) |
+| `save-bar.hide` | `{}` | `{}` | `unsupported_type` (modalda) |
 | `size.set` | `{ height }` | `{}` | `invalid_payload` |
 | `nav.set` | `{ items: [{ label, path }] }` | `{}` | `invalid_payload` |
 | `modal.close` | `{ refresh? }` | `{}` | `unsupported_type` (tam sayfada) |
@@ -304,7 +326,7 @@ Kurallar:
 | `billing.selectPlan` | `{}` | `{}` (panel plan ekranına geçer) | — |
 | diğer | — | — | `unsupported_type` |
 
-`confirm.open`, `resource.pick`, `files.pick` ve `billing.confirm` yanıtı kullanıcı işlem yapınca gelir.
+`confirm.open`, `resource.pick`, `files.pick`, `save-bar.show` ve `billing.confirm` yanıtı kullanıcı işlem yapınca gelir.
 
 ### Eski token mesajı
 
