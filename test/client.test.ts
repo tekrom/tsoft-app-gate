@@ -119,6 +119,28 @@ test('pickFile eski panelde unsupported_type ile reddedilir', async () => {
   app.destroy();
 });
 
+test('saveBar.show kullanıcının düğmesini döner, zaman aşımı yoktur; hide çubuğu kapatır', async () => {
+  const replies: any[] = [{ action: 'save' }, { action: 'garip' }, {}];
+  const { sent } = setup({ handler: () => ({ ok: true, payload: replies.shift() }) });
+  const app = createApp({ timeout: 5 });
+  assert.deepEqual(await app.saveBar.show({ message: 'Düzen değişti' }), { action: 'save' });
+  assert.deepEqual(await app.saveBar.show(), { action: 'dismissed' });
+  await app.saveBar.hide();
+  assert.deepEqual(sent.map((s) => [s.message.type, s.message.payload]), [
+    ['save-bar.show', { message: 'Düzen değişti' }],
+    ['save-bar.show', {}],
+    ['save-bar.hide', {}],
+  ]);
+  app.destroy();
+});
+
+test('saveBar.show eski panelde unsupported_type ile reddedilir', async () => {
+  setup({ handler: () => ({ ok: false, error: 'unsupported_type' }) });
+  const app = createApp();
+  await assert.rejects(app.saveBar.show(), (e: any) => e.code === 'unsupported_type');
+  app.destroy();
+});
+
 test('confirm, navigate ve pickResource yükleri', async () => {
   const { sent } = setup({
     handler: (m) => ({ ok: true, payload: m.type === 'confirm.open' ? { confirmed: true } : m.type === 'resource.pick' ? { ids: [7, 9] } : {} }),

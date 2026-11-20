@@ -8,6 +8,7 @@ import {
   type PanelDetailResource,
   type PanelListResource,
   type PickableFileExtension,
+  type SaveBarAction,
   type PickableResource,
   type RequestPayloads,
   type RequestType,
@@ -100,6 +101,15 @@ export interface PickFileResult {
   cancelled: boolean;
 }
 
+export interface SaveBarOptions extends RequestOptions {
+  /** Çubukta gösterilecek kısa metin (en fazla 100 karakter); verilmezse panelin varsayılan metni. */
+  message?: string;
+}
+
+export interface SaveBarResult {
+  action: SaveBarAction;
+}
+
 export interface BillingConfirmOptions extends RequestOptions {
   /** Uygulamanın sunucusunun Admin API ile oluşturduğu tek seferlik ücretin kimliği. */
   id: string;
@@ -146,6 +156,17 @@ export interface App {
      */
     close(options?: { refresh?: boolean } & RequestOptions): Promise<void>;
   };
+  saveBar: {
+    /**
+     * Panelin üstünde Kaydet / Vazgeç çubuğunu açar ve kullanıcı düğmeye basınca `{ action }` ile çözülür.
+     * Çubuk açıkken panel, kullanıcı menüden ya da alt menüden ayrılmak veya sekmeyi kapatmak isterse onay ister.
+     * `save` gelince kaydedin; başarılıysa `hide()`, değişiklik sürüyorsa yeniden `show()` çağırın.
+     * Varsayılan olarak zaman aşımı yoktur.
+     */
+    show(options?: SaveBarOptions): Promise<SaveBarResult>;
+    /** Çubuğu kapatır ve çıkış onayını kaldırır; bekleyen `show` `dismissed` ile çözülür. */
+    hide(options?: RequestOptions): Promise<void>;
+  };
   billing: {
     /**
      * Tek seferlik ücretin onay ekranını panelde açar; kullanıcı onaylar ve öderse `active`,
@@ -176,6 +197,7 @@ export interface App {
 }
 
 const DEFAULT_TIMEOUT = 10_000;
+const SAVE_BAR_ACTIONS: SaveBarAction[] = ['save', 'discard', 'dismissed'];
 const CHARGE_STATUSES: readonly ChargeStatus[] = ['pending', 'active', 'declined', 'expired'];
 // Token 60 sn yaşar; sunucuya giderken süresi dolmasın diye 15 sn kala yenilenir.
 const REFRESH_MARGIN = 15_000;
@@ -363,6 +385,15 @@ export function createApp(options: AppOptions = {}): App {
       },
     },
 
+    saveBar: {
+      async show({ message, ...rest } = {}) {
+        const response = await request('save-bar.show', message === undefined ? {} : { message: String(message) }, rest, 0);
+        return { action: SAVE_BAR_ACTIONS.includes(response.action) ? response.action : 'dismissed' };
+      },
+      hide(requestOptions) {
+        return empty('save-bar.hide', {}, requestOptions);
+      },
+    },
     billing: {
       async confirm({ id, ...rest }) {
         const response = await request('billing.confirm', { id: String(id) }, rest, 0);
