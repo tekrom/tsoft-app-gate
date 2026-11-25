@@ -74,6 +74,7 @@ export interface RequestPayloads {
   'billing.selectPlan': Record<string, never>;
   'save-bar.show': { message?: string };
   'save-bar.hide': Record<string, never>;
+  'bridge.ping': Record<string, never>;
 }
 
 export interface ResponsePayloads {
@@ -91,6 +92,7 @@ export interface ResponsePayloads {
   'billing.selectPlan': Record<string, never>;
   'save-bar.show': { action: SaveBarAction };
   'save-bar.hide': Record<string, never>;
+  'bridge.ping': Record<string, never>;
 }
 
 export type RequestType = keyof RequestPayloads;
@@ -111,6 +113,7 @@ export type BridgeErrorCode =
   | 'internal_error'
   // istemci
   | 'timeout'
+  | 'panel_unreachable'
   | 'not_embedded'
   | 'destroyed'
   | (string & {});

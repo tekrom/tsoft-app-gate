@@ -221,7 +221,11 @@ Tek seferlik ücretin (Admin API `app-one-time-charges`) onay ekranını panelde
 
 Ödeme dakikalar sürebildiği için **varsayılan olarak zaman aşımı yoktur.** Dönen durum yalnız arayüz içindir; hizmeti açmadan önce durumu **sunucunuzda Admin API ile doğrulayın.** `pending` dönen ücret sonradan `active` olabilir.
 
-Kimlik başka bir uygulamanın ücretine aitse ya da bulunamazsa `charge_not_found` döner. Eski panellerde `unsupported_type` döner; o durumda mağaza sahibini ücretin onay sayfasına (`/apps/charges/{id}`) yönlendirebilirsiniz.
+Kimlik başka bir uygulamanın ücretine aitse ya da bulunamazsa `charge_not_found` döner. Eski panellerde `unsupported_type` döner; o durumda ücretin onay sayfasını yeni sekmede açın. Panel iframe'i üst pencereyi yönlendirmeye izin vermediği için `target="_top"` bağlantı çalışmaz.
+
+```ts
+window.open(`${app.panelOrigin}/apps/charges/${encodeURIComponent(charge.id)}`, '_blank');
+```
 
 ```ts
 const { status } = await app.billing.confirm({ id: charge.id });
@@ -267,6 +271,7 @@ Tüm reddedilen promise'ler `AppBridgeError` taşır; `code` alanı aşağıdaki
 | `charge_not_found` | panel | `billing.confirm` kimliği bu uygulamanın bir ücreti değil. |
 | `internal_error` | panel | Panel isteği işlerken hata aldı (ör. token alınamadı). |
 | `timeout` | istemci | Süre içinde yanıt gelmedi. |
+| `panel_unreachable` | istemci | Kullanıcıyı bekleyen çağrıdan (`confirm`, `pickResource`, `pickFile`, `saveBar.show`, `billing.confirm`) önce panele ulaşılamadı. Çoğunlukla uygulamanın açıldığı adres partner panelindeki uygulama adresiyle aynı origin'de değildir (`www`, alt alan adı ya da yönlendirme farkı); panel başka origin'den gelen mesajı yanıtsız bırakır. |
 | `not_embedded` | istemci | Uygulama panel iframe'i içinde değil ya da üst pencere bir T-Soft paneli değil. |
 | `destroyed` | istemci | `destroy()` çağrıldıktan sonra istek yapıldı. |
 
@@ -324,9 +329,10 @@ Kurallar:
 | `modal.close` | `{ refresh? }` | `{}` | `unsupported_type` (tam sayfada) |
 | `billing.confirm` | `{ id }` | `{ status }` | `invalid_payload`, `charge_not_found`, `internal_error` |
 | `billing.selectPlan` | `{}` | `{}` (panel plan ekranına geçer) | — |
+| `bridge.ping` | `{}` | `{}` | eski panelde `unsupported_type` |
 | diğer | — | — | `unsupported_type` |
 
-`confirm.open`, `resource.pick`, `files.pick`, `save-bar.show` ve `billing.confirm` yanıtı kullanıcı işlem yapınca gelir.
+`confirm.open`, `resource.pick`, `files.pick`, `save-bar.show` ve `billing.confirm` yanıtı kullanıcı işlem yapınca gelir. Paket bu çağrılardan önce bir kez `bridge.ping` gönderir; yanıt (eski panelde `unsupported_type` hatası da) gelmezse çağrı sonsuza kadar beklemek yerine `panel_unreachable` ile reddedilir.
 
 ### Eski token mesajı
 

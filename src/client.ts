@@ -313,6 +313,31 @@ export function createApp(options: AppOptions = {}): App {
     });
   }
 
+  let reachable: Promise<void> | null = null;
+
+  function ensureReachable(): Promise<void> {
+    reachable ??= request('bridge.ping', {}, {}, defaultTimeout > 0 ? defaultTimeout : DEFAULT_TIMEOUT).then(
+      () => undefined,
+      (error: AppBridgeError) => {
+        if (error.code === 'unsupported_type') return;
+        reachable = null;
+        if (error.code !== 'timeout') throw error;
+        throw new AppBridgeError(
+          'panel_unreachable',
+          `T-Soft App Bridge: panel yanıt vermiyor. Panelin origin'i ${panelOrigin}; uygulamanın açıldığı adres (${window.location.origin ?? 'bilinmiyor'}) partner panelindeki uygulama adresiyle aynı origin'de olmalı.`,
+        );
+      },
+    );
+    return reachable;
+  }
+
+  async function awaitUser<T extends RequestType>(type: T, payload: RequestPayloads[T], requestOptions: RequestOptions = {}): Promise<ResponsePayloads[T]> {
+    if (!(requestOptions.timeout && requestOptions.timeout > 0)) {
+      await ensureReachable();
+    }
+    return request(type, payload, requestOptions, 0);
+  }
+
   async function getSession(sessionOptions: { forceRefresh?: boolean } & RequestOptions = {}): Promise<SessionToken> {
     if (!sessionOptions.forceRefresh && isFresh(session)) {
       return session;
@@ -357,7 +382,7 @@ export function createApp(options: AppOptions = {}): App {
 
     async confirm(input) {
       const { message, title, confirmText, ...rest } = typeof input === 'string' ? { message: input } : input;
-      const response = await request('confirm.open', { message, title, confirmText }, rest, 0);
+      const response = await awaitUser('confirm.open', { message, title, confirmText }, rest);
       return response.confirmed === true;
     },
 
@@ -387,7 +412,7 @@ export function createApp(options: AppOptions = {}): App {
 
     saveBar: {
       async show({ message, ...rest } = {}) {
-        const response = await request('save-bar.show', message === undefined ? {} : { message: String(message) }, rest, 0);
+        const response = await awaitUser('save-bar.show', message === undefined ? {} : { message: String(message) }, rest);
         return { action: SAVE_BAR_ACTIONS.includes(response.action) ? response.action : 'dismissed' };
       },
       hide(requestOptions) {
@@ -396,7 +421,7 @@ export function createApp(options: AppOptions = {}): App {
     },
     billing: {
       async confirm({ id, ...rest }) {
-        const response = await request('billing.confirm', { id: String(id) }, rest, 0);
+        const response = await awaitUser('billing.confirm', { id: String(id) }, rest);
         // Tanınmayan durum, ödenmiş sayılmasın diye `pending` kabul edilir.
         return { status: CHARGE_STATUSES.includes(response.status) ? response.status : 'pending' };
       },
@@ -406,12 +431,12 @@ export function createApp(options: AppOptions = {}): App {
     },
 
     async pickResource({ type, multiple, ...rest }) {
-      const response = await request('resource.pick', { type, multiple: multiple === true }, rest, 0);
+      const response = await awaitUser('resource.pick', { type, multiple: multiple === true }, rest);
       return { ids: Array.isArray(response.ids) ? response.ids : [], cancelled: response.cancelled === true };
     },
 
     async pickFile({ accept, ...rest } = {}) {
-      const response = await request('files.pick', accept ? { accept: [...accept] } : {}, rest, 0);
+      const response = await awaitUser('files.pick', accept ? { accept: [...accept] } : {}, rest);
       const url = typeof response.url === 'string' && response.url !== '' ? response.url : null;
       return {
         url,

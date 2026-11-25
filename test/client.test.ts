@@ -8,11 +8,18 @@ const PANEL = 'https://magaza.tsoftpanel.com';
 
 type Handler = (message: any) => { ok: boolean; payload?: unknown; error?: string } | undefined;
 
-function setup({ search = '', origin = PANEL, handler = (() => ({ ok: true, payload: {} })) as Handler } = {}) {
+function setup({ search = '', origin = PANEL, handler = (() => ({ ok: true, payload: {} })) as Handler, ping = (() => ({ ok: true, payload: {} })) as Handler } = {}) {
   const sent: any[] = [];
+  const pings: any[] = [];
   const win = new EventTarget() as any;
   const parent = {
     postMessage(message: any, targetOrigin: string) {
+      if (message.type === 'bridge.ping') {
+        pings.push({ message, targetOrigin });
+        const answer = ping(message);
+        if (answer) queueMicrotask(() => reply({ source: 'tsoft-panel', version: 1, id: message.id, ...answer }));
+        return;
+      }
       sent.push({ message, targetOrigin });
       const answer = handler(message);
       if (answer) queueMicrotask(() => reply({ source: 'tsoft-panel', version: 1, id: message.id, ...answer }));
@@ -24,7 +31,7 @@ function setup({ search = '', origin = PANEL, handler = (() => ({ ok: true, payl
   win.location = { search, ancestorOrigins: [origin] };
   (globalThis as any).window = win;
   (globalThis as any).document = { referrer: '' };
-  return { sent, reply };
+  return { sent, pings, reply };
 }
 
 const jwt = (exp: number, extra: object = {}) => `x.${Buffer.from(JSON.stringify({ exp, ...extra })).toString('base64url')}.y`;
@@ -207,6 +214,47 @@ test('billing.confirm kimliği gönderir, zaman aşımı yoktur, durumu döner',
   await assert.rejects(slow.billing.confirm({ id: 'c-3', timeout: 5 }), (e: any) => e.code === 'timeout');
   slow.destroy();
   await assert.rejects(waiting, (e: any) => e.code === 'destroyed');
+});
+
+test('kullanıcıyı bekleyen çağrılardan önce panel bir kez yoklanır', async () => {
+  const { sent, pings } = setup();
+  const app = createApp();
+  await app.confirm('Emin misiniz?');
+  await app.billing.confirm({ id: 'c-1' });
+  await app.pickResource({ type: 'product' });
+  assert.equal(pings.length, 1);
+  assert.deepEqual(pings[0].message.payload, {});
+  assert.equal(pings[0].targetOrigin, PANEL);
+  assert.equal(sent.length, 3);
+  app.destroy();
+});
+
+test('panel yoklamaya yanıt vermezse billing.confirm panel_unreachable ile reddedilir, yoklama tekrarlanır', async () => {
+  let answer = false;
+  const { sent, pings } = setup({ ping: () => (answer ? { ok: true, payload: {} } : undefined) });
+  const app = createApp({ timeout: 5 });
+  await assert.rejects(app.billing.confirm({ id: 'c-1' }), (e: any) => e instanceof AppBridgeError && e.code === 'panel_unreachable' && e.message.includes(PANEL));
+  assert.equal(sent.length, 0, 'yanıt alınamayan kanala ücret isteği gönderilmez');
+  answer = true;
+  assert.deepEqual(await app.billing.confirm({ id: 'c-1' }), { status: 'pending' });
+  assert.equal(pings.length, 2);
+  app.destroy();
+});
+
+test('eski panelin unsupported_type yanıtı kanalın açık olduğunu gösterir', async () => {
+  const { sent } = setup({ ping: () => ({ ok: false, error: 'unsupported_type' }), handler: () => ({ ok: true, payload: { confirmed: true } }) });
+  const app = createApp();
+  assert.equal(await app.confirm('Emin misiniz?'), true);
+  assert.equal(sent[0].message.type, 'confirm.open');
+  app.destroy();
+});
+
+test('zaman aşımı verilen çağrıda yoklama yapılmaz', async () => {
+  const { pings } = setup({ handler: () => ({ ok: true, payload: { status: 'active' } }) });
+  const app = createApp();
+  assert.deepEqual(await app.billing.confirm({ id: 'c-1', timeout: 1000 }), { status: 'active' });
+  assert.equal(pings.length, 0);
+  app.destroy();
 });
 
 test('billing.selectPlan plan seçimini açar', async () => {
